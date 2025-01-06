@@ -3,12 +3,16 @@ package com.ids.controller;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import com.ids.component.Toast;
 import com.ids.model.NetworkInterfaceInfo;
 import com.ids.model.PacketInfo;
 import com.ids.repository.PacketInfoRepository;
+import com.ids.service.ApiService;
 import com.ids.service.NetworkCaptureService;
+import com.ids.util.JsonUtils;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -67,6 +71,7 @@ public class PacketCaptureController {
 
     private NetworkInterfaceInfo networkInterface;
     private NetworkCaptureService captureService;
+    private ApiService apiService;
     private PacketInfoRepository repository;
     private List<PacketInfo> capturedPackets;
 
@@ -74,6 +79,7 @@ public class PacketCaptureController {
         this.networkInterface = networkInterface;
         this.selectedInterfaceLabel.setText("Selected Interface: " + networkInterface.toString());
         this.captureService = new NetworkCaptureService();
+        this.apiService = new ApiService();
     }
 
     @FXML
@@ -159,7 +165,7 @@ public class PacketCaptureController {
     }
 
     @FXML
-    public void stopCapture() {
+    public void stopCapture() throws Exception {
         try {
             if (captureService != null) {
                 captureService.stopCapture();
@@ -172,14 +178,27 @@ public class PacketCaptureController {
             // Fetch and store captured packets
             capturedPackets = repository.getAllPackets();
 
-            Platform.runLater(() -> {
-                packetTableView.getItems().clear();
-                packetTableView.getItems().addAll(capturedPackets);
-            });
+            String capturedPacketsJson = JsonUtils.toPrettyJson(capturedPackets);
 
-            startCaptureButton.setDisable(false);
-            stopCaptureButton.setDisable(true);
+            apiService.sendPostRequest("http://172.20.57.147:3000", capturedPacketsJson)
+                    .thenAcceptAsync(response -> {
+
+                        // Handle the API response if needed
+                        System.out.println("API Response: " + response);
+
+                        Platform.runLater(() -> {
+                            packetTableView.getItems().clear();
+                            packetTableView.getItems().addAll(capturedPackets);
+                            startCaptureButton.setDisable(false);
+                            stopCaptureButton.setDisable(true);
+                        });
+                    }).exceptionally(throwable -> {
+                        Platform.runLater(() -> showError("Failed to send data to API: " + throwable.getMessage()));
+                        return null;
+                    });
+
         } catch (Exception e) {
+            System.out.println(e.getMessage());
             showError("Failed to stop capture and retrieve packets: " + e.getMessage());
         }
     }

@@ -4,6 +4,8 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 public class PacketInfo {
     private Long id;
     private String sourceIp;
@@ -13,12 +15,15 @@ public class PacketInfo {
     private String protocol;
     private long packetLength;
     private String packetType;
-    private LocalDateTime timestamp;
+    
     private String flags;
     private long totalBytes;
     private int retransmissionCount;
     private int connectionCount;
     private Duration flowDuration;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime timestamp;
 
     public PacketInfo(String sourceIp, int sourcePort, String destinationIp,
             int destinationPort, String protocol, long packetLength,

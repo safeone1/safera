@@ -59,32 +59,33 @@ public class NetworkCaptureService {
             throw new IllegalArgumentException("Network interface cannot be null");
         }
 
-        // Open the network interface for capturing
         handle = networkInterface.openLive(
-                65536, // Max capture size
-                PcapNetworkInterface.PromiscuousMode.PROMISCUOUS, // Promiscuous mode
-                10 // Timeout in milliseconds
-        );
+                65536,
+                PcapNetworkInterface.PromiscuousMode.PROMISCUOUS,
+                10);
 
-        // Set up packet listener
         PacketListener listener = packet -> {
             if (packet != null) {
                 processPacket(packet);
             }
         };
 
-        // Start capturing in a separate thread
         executorService = Executors.newSingleThreadExecutor();
         isCapturing = true;
 
         executorService.submit(() -> {
             try {
-                // Capture packets indefinitely
-                while (isCapturing) {
-                    handle.loop(-1, listener); // -1 means infinite loop
+                while (isCapturing && !Thread.currentThread().isInterrupted()) {
+                    try {
+                        handle.loop(1, listener); // Process one packet at a time
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    } catch (NotOpenException | PcapNativeException e) {
+                        e.printStackTrace();
+                        break;
+                    }
                 }
-            } catch (InterruptedException | NotOpenException | PcapNativeException e) {
-                e.printStackTrace();
             } finally {
                 stopCapture();
             }
@@ -175,17 +176,14 @@ public class NetworkCaptureService {
                     connectionCount.getOrDefault(flowKey, 1),
                     flowDuration);
 
-            System.out.println("TCP Flags: " + flagsStr);
-            System.out.println(packetInfo);
-
             totalBytes.put(flowKey, packetInfo.getTotalBytes());
+
             if ((flagsInt & 0x02) != 0) {
                 connectionCount.merge(flowKey, 1, Integer::sum);
             }
 
             repository.savePacketInfo(packetInfo);
-
-            repository.savePacketInfo(packetInfo);
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -296,14 +294,14 @@ public class NetworkCaptureService {
             try {
                 handle.breakLoop();
             } catch (NotOpenException e) {
-                System.err.println("Handle is not open, cannot break loop: " + e.getMessage());
+                System.err.println("Handle is not open: " + e.getMessage());
+            } finally {
+                handle.close();
             }
-
-            handle.close();
         }
 
-        if (executorService != null) {
-            executorService.shutdown();
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdownNow();
         }
     }
 
