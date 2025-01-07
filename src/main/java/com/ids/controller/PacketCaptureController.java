@@ -3,8 +3,6 @@ package com.ids.controller;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 import com.ids.component.Toast;
 import com.ids.model.NetworkInterfaceInfo;
@@ -129,7 +127,7 @@ public class PacketCaptureController {
             repository = new PacketInfoRepository();
         }
 
-        String protocol = protocolSearchField.getText().trim();
+        String protocol = protocolSearchField.getText().trim().toUpperCase();
         String searchWord = wordSearchField.getText().trim();
 
         if (protocol.isEmpty()) {
@@ -180,7 +178,7 @@ public class PacketCaptureController {
 
             String capturedPacketsJson = JsonUtils.toPrettyJson(capturedPackets);
 
-            apiService.sendPostRequest("http://172.20.57.147:3000", capturedPacketsJson)
+            apiService.sendPostRequest("http://localhost:3000", capturedPacketsJson)
                     .thenAcceptAsync(response -> {
 
                         // Handle the API response if needed

@@ -110,7 +110,8 @@ public class PacketInfoRepository {
 
     public List<PacketInfo> getPacketsByProtocolAndData(String protocol, String searchWord) {
         List<PacketInfo> packets = new ArrayList<>();
-        String sql = "SELECT * FROM packet_info WHERE protocol = ? AND decoded_content LIKE ?";
+        System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n protocol: " + protocol + ", searchWord: " + searchWord);
+        String sql = "SELECT * FROM packet_info WHERE LOWER(protocol) LIKE LOWER(?) AND LOWER(decoded_content) LIKE LOWER(?)";
 
         try (Connection conn = DriverManager.getConnection(DB_URL);
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
