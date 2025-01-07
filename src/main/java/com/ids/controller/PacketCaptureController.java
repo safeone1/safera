@@ -4,7 +4,11 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ids.component.Toast;
+import com.ids.model.ApiResponse;
 import com.ids.model.NetworkInterfaceInfo;
 import com.ids.model.PacketInfo;
 import com.ids.repository.PacketInfoRepository;
@@ -67,6 +71,9 @@ public class PacketCaptureController {
     @FXML
     private TextField wordSearchField;
 
+    @FXML
+    private Label statusLabel;
+
     private NetworkInterfaceInfo networkInterface;
     private NetworkCaptureService captureService;
     private ApiService apiService;
@@ -92,7 +99,7 @@ public class PacketCaptureController {
         retransmissionColumn.setCellValueFactory(new PropertyValueFactory<>("retransmissionCount"));
         connectionCountColumn.setCellValueFactory(new PropertyValueFactory<>("connectionCount"));
         flowDurationColumn.setCellValueFactory(new PropertyValueFactory<>("flowDuration"));
-
+        statusLabel.setText("Ready to capture packets.");
         packetTableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 packetDetailsArea.setText(
@@ -178,11 +185,38 @@ public class PacketCaptureController {
 
             String capturedPacketsJson = JsonUtils.toPrettyJson(capturedPackets);
 
-            apiService.sendPostRequest("http://localhost:3000", capturedPacketsJson)
+            apiService.sendPostRequest("http://localhost:5000/analyze", capturedPacketsJson)
                     .thenAcceptAsync(response -> {
 
                         // Handle the API response if needed
-                        System.out.println("API Response: " + response);
+                                    ObjectMapper objectMapper = new ObjectMapper();
+            try {
+                            ApiResponse responseq = objectMapper.readValue(response, ApiResponse.class);
+                            System.out.println("Response: " + responseq.getData() + responseq.getError());
+                            if (responseq.getSuccess().length() > 0) {
+                                for (int elem : responseq.getData()) {
+                                    if (elem == 1) {
+                                        Platform.runLater(() -> {
+                                            statusLabel
+                                                    .setText("Caution There is some malicious activity in the network");
+                                        });
+                                        break;
+                                    }
+                                }
+                                Platform.runLater(() -> {
+                                            statusLabel
+                                                    .setText("No malicious activity detected in the network");
+                                        });
+                                
+                            }
+            } catch (JsonMappingException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (JsonProcessingException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+
 
                         Platform.runLater(() -> {
                             packetTableView.getItems().clear();
